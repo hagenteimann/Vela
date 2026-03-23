@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VELA Midi Generator</title>
+    <!-- Phosphor Icons für saubere, moderne Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- MIDI Writer JS für die direkte Browser-Konvertierung -->
+    <!-- MIDI Writer JS für die direkte Browser-Konvertierung -->
+    <script src="https://cdn.jsdelivr.net/npm/midi-writer-js@2.1.4/browser/midiwriter.js"></script>
+
+    <style>
+        /* --- FARBEN & BASICS --- */
+        :root {
+            --bg-color: #1a1a1f;
+            --panel-bg: rgba(255, 255, 255, 0.04);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --accent-color: #DCC4D4;
+            --text-main: #ffffff;
+            --text-muted: #888888;
+        }
+
+        /* Sorgt dafür, dass Padding die Breite nicht verändert */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* --- HEADER --- */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 60px;
+        }
+
+        .logo-header {
+            font-size: 24px;
+            font-weight: 300;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo-header b {
+            font-weight: 600;
+            color: var(--accent-color);
+            letter-spacing: 2px;
+        }
+
+        .btn {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+        }
+
+        /* --- MAIN LAYOUT --- */
+        main {
+            display: flex;
+            justify-content: space-between;
+            flex-grow: 1;
+            margin-bottom: 60px;
+        }
+
+        /* --- LINKS: FORMULAR --- */
+        .form-section {
+            width: 35%;
+            display: flex;
+            flex-direction: column;
+            gap: 22px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .input-group label {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        .form-control {
+            width: 100%;
+            /* Zwingt alle Felder auf exakt die gleiche Breite */
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 14px;
+            outline: none;
+            resize: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: inherit;
+        }
+
+        .form-control:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .form-control:focus {
+            border-color: var(--accent-color);
+            background: rgba(255, 255, 255, 0.06);
+            box-shadow: 0 0 0 3px rgba(220, 196, 212, 0.15);
+            /* Moderner Glow-Effekt */
+        }
+
+        .row-inputs {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+        }
+
+        .row-inputs .input-group {
+            flex: 1;
+            min-width: 0;
+            /* Verhindert, dass Flex-Items breiter als der Container werden */
+        }
+
+        select.form-control {
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23888888%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px top 50%;
+            background-size: 10px auto;
+            padding-right: 30px;
+            cursor: pointer;
+        }
+
+        /* NEU: Styling für die aufklappbaren Dropdown-Optionen (macht sie im Dark Mode lesbar) */
+        select.form-control option {
+            background-color: #222228;
+            /* Ein tiefer Grauton, leicht heller als der Body-Hintergrund */
+            color: #ffffff;
+            font-weight: 500;
+        }
+
+        /* Moderne, elegante Checkboxen */
+        .checkbox-group {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            width: 100%;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .checkbox-group:hover {
+            border-color: rgba(220, 196, 212, 0.3);
+            background: rgba(255, 255, 255, 0.06);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+            height: 0;
+            width: 0;
+        }
+
+        /* Custom Checkbox Design (Square mit abgerundeten Ecken) */
+        .custom-checkbox {
+            position: relative;
+            height: 22px;
+            width: 22px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1.5px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        /* Hover Status für die Box selbst */
+        .checkbox-group:hover input~.custom-checkbox {
+            border-color: rgba(220, 196, 212, 0.6);
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Checked Status */
+        .checkbox-group input:checked~.custom-checkbox {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+            box-shadow: 0 0 10px rgba(220, 196, 212, 0.3);
+        }
+
+        /* Das kleine Häkchen Icon generieren */
+        .custom-checkbox:after {
+            content: "";
+            position: absolute;
+            display: none;
+            left: 7px;
+            top: 3px;
+            width: 5px;
+            height: 10px;
+            border: solid #1a1a1f;
+            /* Dunkler Haken auf hellem Grund */
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .checkbox-group input:checked~.custom-checkbox:after {
+            display: block;
+            opacity: 1;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn {
+            0% {
+                transform: scale(0) rotate(45deg);
+            }
+
+            100% {
+                transform: scale(1) rotate(45deg);
+            }
+        }
+
+        .checkbox-group label {
+            margin: 0;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-main);
+            user-select: none;
+            flex-grow: 1;
+            transition: color 0.3s ease;
+        }
+
+        .checkbox-group input:checked~label {
+            color: var(--accent-color);
+        }
+
+        /* Großer Generate Button */
+        .btn-add {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: var(--accent-color);
+            font-size: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-top: 5px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-add:hover {
+            background: var(--accent-color);
+            color: var(--bg-color);
+            border-color: var(--accent-color);
+            transform: translateY(-3px) scale(1.03);
+            box-shadow: 0 8px 25px rgba(220, 196, 212, 0.3);
+        }
+
+        .btn-add.loading {
+            animation: pulse 1.5s infinite;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(0.95);
+                opacity: 0.5;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        /* --- RECHTS: 3D LOGO CSS RECREATION --- */
+        .logo-section {
+            width: 55%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+
+
+        /* --- UNTEN: MIDI LISTE --- */
+        .midi-section {
+            width: 100%;
+        }
+
+        .midi-header {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 15px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .midi-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .midi-item {
+            display: flex;
+            align-items: center;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            padding: 12px 18px;
+            border-radius: 12px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .midi-item:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.06);
+            transform: translateX(4px);
+            /* Schöner Slide-in-Effekt beim Hovern */
+        }
+
+        .midi-chord-text {
+            flex-grow: 1;
+            font-size: 14px;
+            color: var(--accent-color);
+            margin-left: 15px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .badge {
+            background: rgba(220, 196, 212, 0.15);
+            color: var(--accent-color);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            border: 1px solid rgba(220, 196, 212, 0.3);
+        }
+
+        .midi-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .icon-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            padding: 5px;
+            border-radius: 6px;
+        }
+
+        .icon-btn:hover {
+            color: #ff4d4d;
+            background: rgba(255, 77, 77, 0.1);
+        }
+
+        /* Moderne, abgerundete "Pill"-Buttons */
+        .btn-small {
+            padding: 8px 18px;
+            font-size: 12px;
+            font-weight: 500;
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            background: var(--panel-bg);
+            color: var(--text-main);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn-small:hover {
+            background: var(--text-main);
+            color: var(--bg-color);
+            border-color: var(--text-main);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 255, 255, 0.15);
+        }
+
+        #error-msg {
+            color: #ff4d4d;
+            font-size: 13px;
+            margin-top: 5px;
+            display: none;
+            background: rgba(255, 77, 77, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 77, 77, 0.3);
+        }
+
+        /* --- MODAL FOR API KEY --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal-content {
+            background: #1a1a1f;
+            border: 1px solid var(--border-color);
+            padding: 30px;
+            border-radius: 16px;
+            width: 400px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            transform: translateY(20px);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+
+        .modal-content h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- MODAL FÜR API KEY -->
+    <div class="modal-overlay" id="apiModal">
+        <div class="modal-content">
+            <h3>Gemini API Key</h3>
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">
+                Bitte gib deinen Google Gemini API Key ein. Er wird sicher lokal in deinem Browser gespeichert.
+            </p>
+            <input type="password" id="apiKeyInput" class="form-control" placeholder="AIzaSy...">
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                <button class="btn" onclick="closeApiModal()">Abbrechen</button>
+                <button class="btn"
+                    style="background: var(--text-main); color: var(--bg-color); border-color: var(--text-main);"
+                    onclick="saveApiKey()">Speichern</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- HEADER -->
+    <header>
+        <div class="logo-header">
+            <img src="assets/headerlogo.svg" alt="VELA midi generator" style="height: 84px; width: auto;">
+        </div>
+        <button class="btn" onclick="openApiModal()">
+            <i class="ph ph-key"></i> API Key
+        </button>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main>
+        <!-- LINKS: FORM -->
+        <div class="form-section">
+            <div class="input-group">
+                <label>Genre</label>
+                <textarea id="valGenre" class="form-control" rows="3"
+                    placeholder="type in your Genre... (e.g. Melodic Techno, Lo-Fi Hip Hop)"></textarea>
+            </div>
+
+            <div class="row-inputs">
+                <div class="input-group">
+                    <label>Chord Key</label>
+                    <select id="valKey" class="form-control">
+                        <option value="C">C</option>
+                        <option value="C#">C#</option>
+                        <option value="D">D</option>
+                        <option value="D#">D#</option>
+                        <option value="E">E</option>
+                        <option value="F">F</option>
+                        <option value="F#">F#</option>
+                        <option value="G">G</option>
+                        <option value="G#">G#</option>
+                        <option value="A" selected>A</option>
+                        <option value="A#">A#</option>
+                        <option value="B">B</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Scale Type</label>
+                    <select id="valScale" class="form-control">
+                        <option value="Minor">Minor</option>
+                        <option value="Major">Major</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Length</label>
+                    <select id="valLength" class="form-control">
+                        <option value="4">4 Bars</option>
+                        <option value="8" selected>8 Bars</option>
+                        <option value="16">16 Bars</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Variations</label>
+                    <select id="valVariations" class="form-control">
+                        <option value="1" selected>1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>BPM</label>
+                    <input type="number" id="valBPM" class="form-control" value="124" min="40" max="300">
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>Reference artist (optional)</label>
+                <textarea id="valArtist" class="form-control" rows="2"
+                    placeholder="Type in your reference artist..."></textarea>
+            </div>
+
+            <!-- NEU: Chords / Melodie Auswahl -->
+            <div class="row-inputs" style="margin-bottom: -15px;">
+                <label class="checkbox-group">
+                    <input type="checkbox" id="valChords" checked>
+                    <span class="custom-checkbox"></span>
+                    <label for="valChords">Chords</label>
+                </label>
+                <label class="checkbox-group">
+                    <input type="checkbox" id="valMelody">
+                    <span class="custom-checkbox"></span>
+                    <label for="valMelody">Head-Melodie</label>
+                </label>
+            </div>
+
+            <!-- NEU: Humanize Checkbox -->
+            <label class="checkbox-group"
+                title="Aktiviert Velocity-Variationen, Notenlängen und Micro-Offsets durch die KI">
+                <input type="checkbox" id="valHumanize">
+                <span class="custom-checkbox"></span>
+                <label for="valHumanize">Humanize (Groove, Velocity & Timing)</label>
+            </label>
+
+            <p id="error-msg"></p>
+
+            <button class="btn-add" id="generateBtn" onclick="generateChords()" title="Generate Chords">
+                <i class="ph ph-plus"></i>
+            </button>
+        </div>
+
+        <!-- RECHTS: LOGO -->
+        <div class="logo-section">
+            <img src="assets/3dlogo.svg" alt="VELA"
+                style="height: 160px; width: auto; max-width: 100%; filter: drop-shadow(0px 20px 30px rgba(0, 0, 0, 0.5));">
+        </div>
+    </main>
+
+    <!-- UNTEN: MIDI LIST -->
+    <div class="midi-section">
+        <div class="midi-header">
+            <span>Midis</span>
+            <button class="btn-small" id="bulkDownloadBtn"
+                style="display: none; font-size: 11px; padding: 6px 12px; background: rgba(255,255,255,0.08);"
+                onclick="downloadAllMidis()">
+                Bulk Download <i class="ph ph-folder-zip"></i>
+            </button>
+        </div>
+        <div class="midi-list" id="midiList">
+            <div class="midi-item" style="opacity: 0.5;">
+                <button class="icon-btn" disabled><i class="ph ph-trash"></i></button>
+                <div class="midi-chord-text">Noch keine Akkorde generiert. Klicke auf das "+" um zu starten.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const errorMsg = document.getElementById('error-msg');
+
+        // --- API KEY MANAGEMENT ---
+        const apiModal = document.getElementById('apiModal');
+        const apiKeyInput = document.getElementById('apiKeyInput');
+
+        function openApiModal() {
+            apiKeyInput.value = localStorage.getItem('vela_api_key') || '';
+            apiModal.classList.add('active');
+        }
+
+        function closeApiModal() {
+            apiModal.classList.remove('active');
+        }
+
+        function saveApiKey() {
+            const key = apiKeyInput.value.trim();
+            if (key) {
+                localStorage.setItem('vela_api_key', key);
+            } else {
+                localStorage.removeItem('vela_api_key');
+            }
+            closeApiModal();
+        }
+
+        // --- RETRY LOGIC FOR API CALLS ---
+        async function fetchWithRetry(url, options, maxRetries = 5) {
+            const delays = [1000, 2000, 4000, 8000, 16000];
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (!response.ok) {
+                        const errorBody = await response.text().catch(() => 'Kein Fehlertext');
+                        throw new Error(`HTTP Fehler ${response.status}: ${errorBody}`);
+                    }
+                    return response;
+                } catch (error) {
+                    if (i === maxRetries - 1) throw error;
+                    await new Promise(resolve => setTimeout(resolve, delays[i]));
+                }
+            }
+        }
+
+        // --- MIDI GENERATION LOGIC ---
+
+        // Hilfsfunktion zum Begrenzen der MIDI-Noten (C1 bis C8)
+        function clampNote(noteName) {
+            const noteRegex = /^([A-G]#?|rest)(-?\d+)?$/i;
+            const match = noteName.match(noteRegex);
+            if (!match) return 'C4'; // Fallback
+            if (match[1].toLowerCase() === 'rest') return 'rest';
+
+            let note = match[1];
+            let octave = parseInt(match[2]);
+
+            if (isNaN(octave)) octave = 4;
+            if (octave < 1) octave = 1;
+            if (octave > 8) octave = 8;
+
+            return `${note}${octave}`;
+        }
+
+        function getNotesForChord(chordName) {
+            const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+            let rootMatch = chordName.match(/^[A-G]#?/);
+            if (!rootMatch) return [clampNote('C2'), clampNote('C4'), clampNote('E4'), clampNote('G4')];
+
+            let root = rootMatch[0];
+            let isMinor = chordName.toLowerCase().includes('m') && !chordName.toLowerCase().includes('maj');
+
+            let rootIndex = notes.indexOf(root);
+            if (rootIndex === -1) return [clampNote('C2'), clampNote('C4'), clampNote('E4'), clampNote('G4')];
+
+            let thirdIndex = (rootIndex + (isMinor ? 3 : 4)) % 12;
+            let fifthIndex = (rootIndex + 7) % 12;
+
+            let octave = 4;
+            let bassOctave = octave - 2;
+            let thirdOctave = (rootIndex + (isMinor ? 3 : 4)) >= 12 ? octave + 1 : octave;
+            let fifthOctave = (rootIndex + 7) >= 12 ? octave + 1 : octave;
+
+            return [
+                clampNote(`${notes[rootIndex]}${bassOctave}`),
+                clampNote(`${notes[rootIndex]}${octave}`),
+                clampNote(`${notes[thirdIndex]}${thirdOctave}`),
+                clampNote(`${notes[fifthIndex]}${fifthOctave}`)
+            ];
+        }
+
+        // Akzeptiert jetzt optional ein melodyArray und BPM
+        function createMidiDataUri(chordsArray, melodyArray, bpm = 124) {
+            if (typeof MidiWriter === 'undefined') {
+                throw new Error("Die MIDI-Bibliothek wurde nicht geladen. Bitte lade die Seite neu.");
+            }
+
+            const tracks = [];
+
+            // --- SPUR 1: Akkorde ---
+            if (chordsArray && chordsArray.length > 0) {
+                const track1 = new MidiWriter.Track();
+                track1.addEvent(new MidiWriter.ProgramChangeEvent({ instrument: 1 })); // Piano/Chords
+                track1.addEvent(new MidiWriter.TempoEvent({ bpm: parseInt(bpm) }));
+
+                chordsArray.forEach(item => {
+                    const chordName = typeof item === 'string' ? item : item.chord;
+                    let duration = typeof item === 'object' ? (item.duration || '1') : '1';
+                    let velocity = typeof item === 'object' ? (item.velocity || 85) : 85;
+                    let wait = typeof item === 'object' ? (item.wait || '0') : '0';
+
+                    if (chordName.toLowerCase() === 'rest' || chordName === '-') {
+                        track1.addEvent(new MidiWriter.NoteEvent({ pitch: ['C4'], duration: duration, velocity: 0, wait: wait }));
+                        return;
+                    }
+
+                    const notes = getNotesForChord(chordName);
+                    if (notes) {
+                        track1.addEvent(new MidiWriter.NoteEvent({ pitch: notes, duration: duration, velocity: velocity, wait: wait }));
+                    }
+                });
+                tracks.push(track1);
+            }
+
+            // --- SPUR 2: Head-Melodie (falls angefordert) ---
+            if (melodyArray && melodyArray.length > 0) {
+                const track2 = new MidiWriter.Track();
+                track2.addEvent(new MidiWriter.ProgramChangeEvent({ instrument: 81 })); // Synth Lead
+
+                melodyArray.forEach(item => {
+                    const noteName = typeof item === 'string' ? item : item.note;
+                    let duration = typeof item === 'object' ? (item.duration || '8') : '8';
+                    let velocity = typeof item === 'object' ? (item.velocity || 85) : 85;
+                    let wait = typeof item === 'object' ? (item.wait || '0') : '0';
+
+                    if (noteName.toLowerCase() === 'rest' || noteName === '-') {
+                        // Trick für MIDI-Pause: Eine leise Note (Velocity 0) mit Dauer spielen
+                        track2.addEvent(new MidiWriter.NoteEvent({ pitch: ['C4'], duration: duration, velocity: 0, wait: wait }));
+                    } else {
+                        // Note säubern und begrenzen, um FL Studio Range-Fehler zu vermeiden
+                        let cleanNote = noteName.replace(/[^A-G#b0-9]/gi, '');
+                        cleanNote = clampNote(cleanNote);
+                        if (cleanNote && cleanNote !== 'rest') {
+                            track2.addEvent(new MidiWriter.NoteEvent({ pitch: [cleanNote], duration: duration, velocity: velocity, wait: wait }));
+                        } else {
+                            // Fallback Pause bei ungültigem Format oder rest
+                            track2.addEvent(new MidiWriter.NoteEvent({ pitch: ['C4'], duration: duration, velocity: 0, wait: wait }));
+                        }
+                    }
+                });
+                tracks.push(track2);
+            }
+
+            if (tracks.length === 0) {
+                const dummy = new MidiWriter.Track();
+                dummy.addEvent(new MidiWriter.NoteEvent({ pitch: ['C4'], duration: '1', velocity: 0 }));
+                tracks.push(dummy);
+            }
+
+            const write = new MidiWriter.Writer(tracks);
+            return write.dataUri();
+        }
+
+        function downloadURI(uri, name) {
+            let link = document.createElement("a");
+            link.download = name;
+            link.href = uri;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // --- GEMINI API CALL ---
+        async function generateChords() {
+            const apiKey = localStorage.getItem('vela_api_key');
+
+            if (!apiKey) {
+                openApiModal();
+                return;
+            }
+
+            const genre = document.getElementById('valGenre').value || 'Pop';
+            const key = document.getElementById('valKey').value;
+            const scale = document.getElementById('valScale').value;
+            const bars = document.getElementById('valLength').value;
+            const variations = document.getElementById('valVariations').value;
+            const bpm = document.getElementById('valBPM').value || '124';
+            const artist = document.getElementById('valArtist').value;
+            const includeChords = document.getElementById('valChords').checked;
+            const includeMelody = document.getElementById('valMelody').checked;
+            const includeHumanize = document.getElementById('valHumanize').checked;
+
+            if (!includeChords && !includeMelody) {
+                errorMsg.innerText = "Bitte wähle aus, was generiert werden soll (Chords, Melodie oder beides).";
+                errorMsg.style.display = 'block';
+                return;
+            }
+
+            const btn = document.getElementById('generateBtn');
+            btn.classList.add('loading');
+            errorMsg.style.display = 'none';
+
+            let chordInstruction = "";
+            let melodyInstruction = "";
+            let humanizeInstruction = "";
+
+            if (includeHumanize) {
+                humanizeInstruction = `*** [HUMANIZE-MODUS IST AKTIV] ***
+                Du MUSST der Musik einen menschlichen Groove verleihen, das JSON-Schema erwartet detaillierte Objekte!
+                - Baue ABSOLUT MINIMALE Zeitverschiebungen / Micro-Timing Offsets über das Feld 'wait' ein. Der Groove / die Verschiebung darf MAXIMAL 1/6 Step betragen (Nutze also nur extrem kleine Werte wie '32' oder '64' für 'wait' und das nur GANZ SELTEN). 99% der Noten MÜSSEN perfekt auf dem Beat liegen ('0')!
+                - Variiere die 'velocity' (Anschlagdynamik) bei JEDEM Schritt (z.B. Haupttakt-Betonungen mit 90-100, Ghost-Notes / Zwischennoten mit 40-70). Variiere auch die Akkorde leicht in der Velocity.
+                - Wähle für 'duration' Längen, die für Pop gut klingen (z.B. '4', '8', '16'). Mache Akkorde evtl. etwas länger ('1', '2') oder spiele sie rhythmisch staccato.`;
+            }
+            if (includeChords) {
+                chordInstruction = `Generiere ${variations} musikalisch sinnvolle, aber VÖLLIG UNTERSCHIEDLICHE Akkordfolgen. 
+                - NEURO-PSYCHOLOGIE (DOPAMIN): Erzeuge emotionale Spannungskurven. Nutze Tension & Release (z.B. ii-V7-I, Sus-Akkorde, Borrowed Chords oder Modal Interchange).
+                - Jede Variation MUSS einen massiven "Earworm"-Charakter haben.
+                - Stimme das Voice-Leading so ab, dass die Übergänge flüssig klingen.
+                - Nutze Akkord-Erweiterungen (z.B. maj7, min7, sus4, add9, 9, 11, 13) für einen reichhaltigeren Sound.
+                Gib auf keinen Fall mehrmals die exakt gleiche Akkordfolge zurück!`;
+            } else {
+                chordInstruction = `Es sollen KEINE Akkorde generiert werden. Lasse das Array für Chords komplett leer (Beispiel: []).`;
+            }
+
+            if (includeMelody) {
+                const artistStyleText = artist ? ` Orientiere den Stil (Notenlänge, typische Sprünge) der Melodie sehr nah an den typischen Melodien von **${artist}**.` : "";
+
+                melodyInstruction = `Generiere ${variations} Head-Melodie(n) (Lead) – eine PASSEND zu JEDER Akkord-Variation! Wende Musiktheorie an, um sie MAXIMAL DOPAMIN-AUSLÖSEND zu machen. **Passe die Melodie-Struktur zwingend an das Genre (${genre}) an:**${artistStyleText}
+                - NEURO-PSYSCHOLOGIE: Nutze das Prinzip von Spannung und Erlösung (Tension & Release). Baue kleine Überraschungen ein (Unexpected Notes), die sich dann harmonisch auflösen.
+                - RHYTHMISCHER GROOVE: Nutze Synkopierung (Off-Beat Noten). Vermeide einen rein statischen Rhythmus.
+                - SEI EXTREM MINIMALISTISCH: Benutze sehr wenige, aber einprägsame Noten. Weniger ist mehr. Lass Noten viel atmen ('rest').
+                - STARKE REPETITION & MOTIVE: Etabliere ein kurzes Motiv und wiederhole es mit minimalen Variationen (Motif Evolution).
+                - Nutze fast ausschließlich Töne der Pentatonik der gewählten Tonart für extreme Eingängigkeit, aber ergänze gelegentlich "Blue Notes".
+                - WICHTIG: Das 'melody' Array MUSS pro Progression gefüllt sein!`;
+            } else {
+                melodyInstruction = `Es soll KEINE Melodie generiert werden. Lasse das Array für Melody komplett leer (Beispiel: []).`;
+            }
+
+            const prompt = `Du bist ein professioneller Musikproduzent.
+            Parameter für das Stück: Genre=${genre}, Key=${key} ${scale}, Länge=${bars} Takte. 
+            ${artist ? `Referenz-Künstler: ${artist}` : ''}
+            
+            WICHTIGSTE REGELN FÜR DIESE ANFRAGE:
+            - **Zwingend exakt ${bars} Takte musikalische Länge einhalten!** Weder zu kurz noch zu lang.
+            - Strengstens exakt **${variations} Array-Elemente (progressions)** zurückgeben!
+            
+            ${chordInstruction}
+            
+            ${melodyInstruction}
+            
+            ${humanizeInstruction}`;
+
+            // --- DYNAMIC JSON SCHEMA ---
+            let chordsItemsSchema = { type: "STRING" };
+            let melodyItemsSchema = { type: "STRING" };
+
+            if (includeHumanize) {
+                chordsItemsSchema = {
+                    type: "OBJECT",
+                    properties: {
+                        chord: { type: "STRING", description: "Name des Akkords (z.B. Cmaj7) oder 'rest' für Pausen" },
+                        duration: { type: "STRING", description: "Länge, z.B. '1', '2', '4', '8', '16'" },
+                        velocity: { type: "INTEGER", description: "Anschlagstärke 10-100" },
+                        wait: { type: "STRING", description: "Pause/Verschiebung DAVOR ('0', '8', '16')" }
+                    },
+                    required: ["chord", "duration", "velocity", "wait"]
+                };
+                melodyItemsSchema = {
+                    type: "OBJECT",
+                    properties: {
+                        note: { type: "STRING", description: "Note, z.B. 'C5' oder 'rest'" },
+                        duration: { type: "STRING", description: "Länge, z.B. '4', '8', '16'" },
+                        velocity: { type: "INTEGER", description: "Anschlagstärke 10-100" },
+                        wait: { type: "STRING", description: "Pause/Verschiebung DAVOR ('0', '8', '16')" }
+                    },
+                    required: ["note", "duration", "velocity", "wait"]
+                };
+            }
+
+            try {
+                // HIER WURDE DAS MODELL AUF gemini-2.5-flash GEÄNDERT, DAMIT DEIN EIGENER API KEY FUNKTIONIERT
+                const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: {
+                            temperature: 0.95,
+                            responseMimeType: "application/json",
+                            responseSchema: {
+                                type: "OBJECT",
+                                properties: {
+                                    progressions: {
+                                        type: "ARRAY",
+                                        items: {
+                                            type: "OBJECT",
+                                            properties: {
+                                                chords: {
+                                                    type: "ARRAY",
+                                                    items: chordsItemsSchema
+                                                },
+                                                melody: {
+                                                    type: "ARRAY",
+                                                    items: melodyItemsSchema
+                                                }
+                                            },
+                                            required: ["chords"]
+                                        }
+                                    }
+                                },
+                                required: ["progressions"]
+                            }
+                        }
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!data.candidates || data.candidates.length === 0 || !data.candidates[0].content) {
+                    throw new Error("Unerwartetes API-Ergebnis. Bitte überprüfe die Entwicklerkonsole.");
+                }
+
+                let chordsText = data.candidates[0].content.parts[0].text;
+                let cleanText = chordsText.replace(/```json/gi, '').replace(/```/g, '').trim();
+                let parsedResult = JSON.parse(cleanText);
+
+                if (parsedResult.progressions && parsedResult.progressions.length > 0) {
+                    const fullKey = `${key} ${scale}`;
+                    [...parsedResult.progressions].reverse().forEach(prog => {
+                        addMidiToList(prog.chords, prog.melody, fullKey, includeChords, includeMelody, genre, artist, bpm);
+                    });
+                } else {
+                    throw new Error("Konnte keine gültige Akkordfolge generieren.");
+                }
+
+            } catch (err) {
+                console.error("Ausführlicher Fehler:", err);
+                errorMsg.innerText = "Fehler: " + err.message;
+                errorMsg.style.display = 'block';
+            } finally {
+                btn.classList.remove('loading');
+            }
+        }
+
+        // --- UI UPDATES ---
+        let historyCount = 0;
+
+        function addMidiToList(chordsArray, melodyArray, fullKey, includeChords, includeMelody, genre, artist, bpm) {
+            const list = document.getElementById('midiList');
+            if (historyCount === 0) {
+                list.innerHTML = '';
+                document.getElementById('bulkDownloadBtn').style.display = 'flex';
+            }
+
+            historyCount++;
+
+            let displayString = "";
+            let badges = [];
+
+            if (artist) {
+                badges.push(`<span class="badge" style="background: rgba(230,120,120,0.15); border-color: rgba(230,120,120,0.3); color: #e67878; margin-right: 5px;">${artist}</span>`);
+            }
+
+            if (genre) {
+                badges.push(`<span class="badge" style="background: rgba(245,213,71,0.15); border-color: rgba(245,213,71,0.3); color: #f5d547; margin-right: 5px;">${genre}</span>`);
+            }
+
+            if (fullKey) {
+                badges.push(`<span class="badge" style="background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); color: #fff; margin-right: 5px;">${fullKey}</span>`);
+            }
+
+            if (bpm) {
+                badges.push(`<span class="badge" style="background: rgba(100,255,100,0.1); border-color: rgba(100,255,100,0.2); color: #64ff64; margin-right: 5px;">${bpm} BPM</span>`);
+            }
+
+            if (includeChords) {
+                badges.push('<span class="badge" style="background: rgba(220,196,212,0.15); color: var(--accent-color);">Chords</span>');
+                if (chordsArray && chordsArray.length > 0) {
+                    displayString = chordsArray.map(c => typeof c === 'string' ? c : c.chord).join(', ');
+                }
+            }
+            if (includeMelody) {
+                badges.push('<span class="badge" style="background: rgba(100,200,255,0.15); color: #64c8ff;">Melodie</span>');
+                if (!includeChords && melodyArray && melodyArray.length > 0) {
+                    displayString = melodyArray.map(m => typeof m === 'string' ? m : m.note).join(', ');
+                }
+            }
+
+            const badgeHtml = badges.join(' ');
+            const midiUri = createMidiDataUri(chordsArray, melodyArray, bpm);
+
+            let safeGenre = genre ? genre.replace(/[^a-z0-9]/gi, '_') : 'Midi';
+            let safeKey = fullKey ? fullKey.replace(/[^a-z0-9]/gi, '_') : 'Key';
+            let safeArtist = artist ? artist.replace(/[^a-z0-9]/gi, '_') : '';
+            let downloadFileName = `VELA_${safeGenre}`;
+            if (safeArtist) downloadFileName += `_${safeArtist}`;
+            downloadFileName += `_${safeKey}_${bpm}BPM`;
+
+            if (includeChords && includeMelody) {
+                downloadFileName += "_Chords_and_Melody";
+            } else if (includeChords) {
+                downloadFileName += "_Chords";
+            } else if (includeMelody) {
+                downloadFileName += "_Melody";
+            }
+            downloadFileName += `_${historyCount}.mid`;
+
+            const item = document.createElement('div');
+            item.className = 'midi-item';
+            item.innerHTML = `
+                <button class="icon-btn" onclick="this.parentElement.remove()"><i class="ph ph-trash"></i></button>
+                <div class="midi-chord-text" style="display: flex; gap: 10px; align-items: center; white-space: normal;">
+                    ${badgeHtml}
+                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 250px;">${displayString}</span>
+                </div>
+                <div class="midi-actions">
+                    <button class="btn-small" title="Akkorde kopieren" onclick="copyToClipboard('${displayString}')">
+                        <i class="ph ph-copy"></i>
+                    </button>
+                    <button class="btn-small" style="background: var(--accent-color); color: var(--bg-color);" onclick="downloadURI('${midiUri}', '${downloadFileName}')">
+                        Midi <i class="ph ph-download-simple"></i>
+                    </button>
+                </div>
+            `;
+            list.prepend(item);
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                // Ein kleines visuelles Feedback wäre schön, aber wir halten es simpel
+                console.log('Copied to clipboard');
+            });
+        }
+
+        // --- BULK DOWNLOAD ---
+        function downloadAllMidis() {
+            const list = document.getElementById('midiList');
+            const items = list.querySelectorAll('.midi-item');
+            if (items.length === 0) {
+                alert("Keine MIDIs zum Herunterladen gefunden.");
+                return;
+            }
+
+            const btn = document.getElementById('bulkDownloadBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = 'Downloading... <i class="ph ph-spinner-gap ph-spin"></i>';
+
+            let delays = 0;
+
+            items.forEach((item, index) => {
+                const downloadBtn = item.querySelector('.midi-actions .btn-small');
+                if (downloadBtn) {
+                    const onclickText = downloadBtn.getAttribute('onclick');
+                    if (onclickText && onclickText.includes('downloadURI')) {
+                        const match = onclickText.match(/downloadURI\('([^']+)',\s*'([^']+)'\)/);
+                        if (match) {
+                            const uri = match[1];
+                            const filename = match[2];
+
+                            // Download mit leichter Verzögerung auslösen
+                            // Browser blockieren oft viele gleichzeitige Downloads
+                            setTimeout(() => {
+                                downloadURI(uri, filename);
+                            }, delays);
+                            delays += 300; // 300ms delay zwischen jedem Download
+                        }
+                    }
+                }
+            });
+
+            // Button wieder zurücksetzen, nachdem alle Downloads getriggert wurden
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+            }, delays + 500);
+        }
+    </script>
+</body>
+
+</html>
